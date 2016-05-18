@@ -3,7 +3,9 @@ require 'null_logger'
 module BarkingIguana
   module CacheBucket
     class CacheBucket
+      SHARED_PREFIX = '##shared##'.freeze
       KEY_DIVIDER = '__'.freeze
+      MAXIMUM_AGE = 3600
 
       attr_accessor :maximum_age
       private :maximum_age=, :maximum_age
@@ -17,16 +19,16 @@ module BarkingIguana
       attr_accessor :cache
       private :cache=, :cache
 
-      def initialize maximum_age: 3600, logger: nil
+      def initialize maximum_age: MAXIMUM_AGE, logger: nil
         self.maximum_age = maximum_age.to_i
         self.logger = logger || NullLogger.instance
         self.cache = {}
       end
 
-      def get key
-        logger.debug { "Getting #{key}" }
+      def get key, prefix: SHARED_PREFIX
         evict_expired_keys
-        k = generation_key(key)
+        k = generation_key(key, prefix)
+        logger.debug { "Getting #{k.inspect} (key: #{key.inspect}, prefix: #{prefix.inspect})" }
         if cache.key? k
           logger.debug { "Key #{k.inspect} found in the cache" }
           cache[k].tap do |v|
@@ -43,10 +45,10 @@ module BarkingIguana
         end
       end
 
-      def set key, value
+      def set key, value, prefix: SHARED_PREFIX
         evict_expired_keys
-        k = generation_key(key)
-        logger.debug { "Setting value to #{value.inspect}" }
+        k = generation_key(key, prefix)
+        logger.debug { "Setting #{k.inspect} (key: #{key.inspect}, prefix: #{prefix.inspect}) to #{value.inspect}" }
         cache[k] = value
       end
 
@@ -68,10 +70,8 @@ module BarkingIguana
         Time.now.to_i / maximum_age
       end
 
-      def generation_key key
-        [ generation_id, key ].join(KEY_DIVIDER).tap do |k|
-          logger.debug { "Current generation key for #{key.inspect} is #{k.inspect}" }
-        end
+      def generation_key key, prefix
+        [ generation_id, prefix, key ].join(KEY_DIVIDER)
       end
     end
   end

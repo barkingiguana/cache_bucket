@@ -1,18 +1,13 @@
+require "barking_iguana/otk/defaults"
 require "barking_iguana/cache_bucket/version"
 require "barking_iguana/cache_bucket/cache_bucket"
 require "barking_iguana/cache_bucket/dsl"
 
 module BarkingIguana
   module CacheBucket
-    class << self
-      attr_accessor :logger
-    end
-    self.logger = NullLogger.instance
-
-    class << self
-      attr_accessor :maximum_age
-    end
-    self.maximum_age = 3600
+    include Otk::Defaults
+    defaults logger: NullLogger.instance,
+             maximum_age: 3600
 
     def self.get name, options = {}
       buckets[name] ||= create_bucket name, options
@@ -29,5 +24,6 @@ module BarkingIguana
       o[:maximum_age] ||= maximum_age
       CacheBucket.new o
     end
+    private_class_method :create_bucket
   end
 end
